@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --c1: #0A1628;
+  --c2: #1E40AF;
+  --c3: #0EA5E9;
+  --c4: #0D9488;
+  --c5: #F59E0B;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    min-width: 320px;
+  }
+  body {
+    @apply bg-white text-gray-900 dark:bg-brand-dark dark:text-gray-100 transition-colors duration-300;
+  }
+}
+
+@layer components {
+  .section-x {
+    @apply px-4 md:px-10 lg:px-16 xl:px-24;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold bg-brand-royal text-white hover:bg-brand-sky transition-all duration-200 hover:shadow-lg hover:shadow-brand-royal/30 hover:-translate-y-0.5;
+  }
+  .btn-outline {
+    @apply inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold border-2 border-brand-royal text-brand-royal dark:border-brand-sky dark:text-brand-sky hover:bg-brand-royal hover:text-white dark:hover:bg-brand-sky dark:hover:text-white transition-all duration-200;
+  }
+  .card {
+    @apply rounded-2xl bg-white dark:bg-brand-navy border border-gray-100 dark:border-white/10 shadow-sm hover:shadow-xl transition-all duration-300;
+  }
+  .nav-link {
+    @apply relative font-medium text-gray-700 dark:text-gray-300 hover:text-brand-royal dark:hover:text-brand-sky transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-brand-royal dark:after:bg-brand-sky after:transition-all after:duration-200 hover:after:w-full;
+  }
+  .tab-btn {
+    @apply px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200;
+  }
+  .tab-btn-active {
+    @apply bg-brand-royal text-white shadow-md shadow-brand-royal/30;
+  }
+  .tab-btn-inactive {
+    @apply text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10;
+  }
+}
+
+@layer utilities {
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+  .glass {
+    @apply backdrop-blur-md bg-white/10 border border-white/20;
+  }
+}
