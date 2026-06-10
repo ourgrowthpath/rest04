@@ -19,6 +19,7 @@ export const navigation = [
       { label: 'AI 리터러시', path: '/videos/ai-literacy', desc: 'AI 활용 역량 교육' },
     ],
   },
+  { label: '게시판', path: '/board' },
   { label: '회사소개', path: '/about' },
   { label: '문의하기', path: '/contact' },
 ]

@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import { navigation, company } from '../data/site'
 
 export default function Header() {
   const { dark, toggle } = useTheme()
+  const { user, displayName, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileVideoOpen, setMobileVideoOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [videoDropdown, setVideoDropdown] = useState(false)
+  const [userDropdown, setUserDropdown] = useState(false)
   const dropdownRef = useRef(null)
+  const userDropdownRef = useRef(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -28,6 +32,9 @@ export default function Header() {
     function handler(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setVideoDropdown(false)
+      }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target)) {
+        setUserDropdown(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -129,10 +136,39 @@ export default function Header() {
               )}
             </button>
 
-            {/* CTA button (desktop) */}
-            <Link to="/videos/ai" className="hidden lg:inline-flex btn-primary text-sm py-2 px-4">
-              무료로 시작
-            </Link>
+            {/* Auth buttons (desktop) */}
+            {user ? (
+              <div ref={userDropdownRef} className="relative hidden lg:block">
+                <button
+                  onClick={() => setUserDropdown(v => !v)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-brand-royal flex items-center justify-center text-white text-xs font-bold">
+                    {displayName?.[0]?.toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 max-w-[100px] truncate">{displayName}</span>
+                  <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${userDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {userDropdown && (
+                  <div className="absolute right-0 top-full mt-2 w-40">
+                    <div className="card p-1.5 shadow-xl">
+                      <button
+                        onClick={() => { signOut(); setUserDropdown(false) }}
+                        className="w-full text-left px-4 py-2.5 rounded-lg text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        로그아웃
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link to="/login" className="hidden lg:inline-flex btn-primary text-sm py-2 px-4">
+                로그인
+              </Link>
+            )}
 
             {/* Hamburger */}
             <button
@@ -213,10 +249,32 @@ export default function Header() {
               </Link>
             )
           )}
-          <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/10">
-            <Link to="/videos/ai" className="btn-primary w-full justify-center" onClick={() => setMenuOpen(false)}>
-              무료로 시작
-            </Link>
+          <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/10 flex flex-col gap-2">
+            {user ? (
+              <>
+                <div className="flex items-center gap-2 px-2 py-1 text-sm text-gray-600 dark:text-gray-300">
+                  <div className="w-7 h-7 rounded-full bg-brand-royal flex items-center justify-center text-white text-xs font-bold">
+                    {displayName?.[0]?.toUpperCase()}
+                  </div>
+                  <span className="truncate">{displayName}</span>
+                </div>
+                <button
+                  onClick={() => { signOut(); setMenuOpen(false) }}
+                  className="w-full text-center py-3 rounded-xl text-sm font-medium text-red-500 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="btn-primary w-full justify-center" onClick={() => setMenuOpen(false)}>
+                  로그인
+                </Link>
+                <Link to="/signup" className="btn-outline w-full justify-center" onClick={() => setMenuOpen(false)}>
+                  회원가입
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       </div>
