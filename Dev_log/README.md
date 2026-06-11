@@ -560,6 +560,8 @@ dist/og-image.png               234.7  KB (public/ 자동 복사)
 | 7 | `fdb3735` | 2026-06-09 | docs: 개발일지 v4 — OG 검증 결과 추가 | 1 |
 | 8 | `d525f48` | 2026-06-11 | feat: 게시판 및 로그인 기능 구현 (Supabase 연동) | 18 |
 | 9 | `970d5c7` | 2026-06-11 | fix: schema.sql 재실행 안전 버전으로 업데이트 | 1 |
+| 10 | `36e8b38` | 2026-06-11 | docs: 개발일지 v5 — Supabase 연동 작업 기록 추가 | 1 |
+| 11 | *(이번)* | 2026-06-11 | fix: 카카오 OAuth 스코프 profile_nickname으로 수정 | 2 |
 
 **커밋 #2 포함 파일 목록 (23개)**
 ```
@@ -596,6 +598,8 @@ scripts/generate-og.mjs (신규)
 | 7 | `fdb3735` | push | ✅ | 개발일지 v4 — OG 검증 결과 추가 |
 | 8 | `d525f48` | push | ✅ | Supabase 연동 — 게시판·로그인·카카오 OAuth |
 | 9 | `970d5c7` | push | ✅ | schema.sql 안전 버전 업데이트 |
+| 10 | `36e8b38` | push | ✅ | 개발일지 v5 |
+| 11 | *(이번)* | push | 🔄 | 카카오 OAuth 스코프 수정 (KOE205 해결) |
 
 **라이브 엔드포인트 최종 상태**
 ```
@@ -618,6 +622,40 @@ https://ourgrowthpath.github.io/rest04/og-image.png → HTTP 200 (235 KB)
 | 🟡 | 게시판 댓글 기능 | `comments` 테이블 + 게시글 하단 댓글 영역 |
 | 🟢 | 커스텀 도메인 | GitHub Pages CNAME + DNS 레코드 |
 | 🟢 | 영상 북마크 | localStorage 저장, 헤더 북마크 아이콘 |
+
+---
+
+### 5-11. 카카오 OAuth 스코프 수정 (2026-06-11)
+
+#### 문제
+개인 개발자 앱은 카카오 이메일(`account_email`) 스코프 사용 불가.  
+로그인 시 **KOE205** 에러 발생 (`Unsupported provider: provider is not enabled` 포함).
+
+#### 원인
+Supabase의 카카오 OAuth 기본 설정이 `account_email` 스코프를 요청하는데,  
+개인 개발자 앱은 해당 스코프가 비활성 상태라 카카오 측에서 차단.
+
+#### 수정 내용 (`src/context/AuthContext.jsx`)
+
+```js
+// 수정 전
+supabase.auth.signInWithOAuth({
+  provider: 'kakao',
+  options: { redirectTo: window.location.origin },
+})
+
+// 수정 후
+supabase.auth.signInWithOAuth({
+  provider: 'kakao',
+  options: {
+    redirectTo: window.location.origin,
+    scopes: 'profile_nickname',   // account_email 제거
+  },
+})
+```
+
+`profile_nickname` 스코프만 요청 → 닉네임으로 `displayName` 표시.  
+이메일 없이 로그인 가능, KOE205 에러 해소.
 
 ---
 
