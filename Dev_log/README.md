@@ -1,6 +1,6 @@
-# 성장패스 아카데미 — 개발일지 v4
+# 성장패스 아카데미 — 개발일지 v5
 
-> **온라인 AI 교육 플랫폼 rest04** · 전체 개발 기록 최종본
+> **온라인 AI 교육 플랫폼 rest04** · 전체 개발 기록
 
 | 항목 | 내용 |
 |------|------|
@@ -8,9 +8,9 @@
 | 리포지토리 | https://github.com/ourgrowthpath/rest04 |
 | 배포 URL | https://ourgrowthpath.github.io/rest04/ |
 | 참조 리포 | https://github.com/aebonlee/rest03 |
-| 개발 기간 | 2026-06-09 |
-| 개발일지 버전 | v4 (최종) |
-| 최종 커밋 | `e4b2188` |
+| 개발 기간 | 2026-06-09 ~ 2026-06-11 |
+| 개발일지 버전 | v5 |
+| 최종 커밋 | `970d5c7` |
 
 ---
 
@@ -28,6 +28,8 @@
 10. [배포 이력](#10-배포-이력)
 11. [향후 작업 계획](#11-향후-작업-계획)
 
+> **2026-06-11 업데이트**: Supabase 연동 — 게시판·로그인·카카오 OAuth 추가
+
 ---
 
 ## 1. 요구사항 & 완료 현황
@@ -43,6 +45,9 @@
 | 7 | OG 메타태그 6종 + OG 이미지 1200×630 (카카오·SNS 공유 최적화) | ✅ |
 | 8 | GitHub Actions 자동 빌드·배포 (main 푸시 시 트리거) | ✅ |
 | 9 | 카카오 공유 디버거 OG 미리보기 전항목 검증 | ✅ |
+| 10 | Supabase Auth — 이메일/비밀번호 + 카카오 OAuth 로그인 | ✅ |
+| 11 | 게시판 (목록·상세·작성·수정·삭제) + 검색 + 페이지네이션 | ✅ |
+| 12 | RLS 정책 — 읽기 전체 공개 / 쓰기 로그인 / 수정·삭제 본인글만 | ✅ |
 
 ---
 
@@ -58,6 +63,14 @@
 | **React Router DOM** | 6.26.2 | HashRouter — GitHub Pages 정적 호스팅 클라이언트 라우팅 |
 | **Pretendard** | CDN | 한국어 최적화 가변 폰트, subset 동적 로딩 |
 
+### 백엔드 & 인증
+
+| 기술 | 버전 | 용도 |
+|------|------|------|
+| **Supabase** | — | DB(PostgreSQL) + Auth + RLS |
+| **@supabase/supabase-js** | latest | 클라이언트 SDK |
+| **Kakao OAuth** | — | 소셜 로그인 (Supabase Provider 연동) |
+
 ### 빌드 & 인프라
 
 | 기술 | 용도 |
@@ -65,6 +78,7 @@
 | **sharp** | OG 이미지 생성 (SVG → PNG), `--no-save` 임시 설치 |
 | **GitHub Actions** | CI/CD — npm ci → vite build → pages 배포 |
 | **GitHub Pages** | 정적 호스팅, `build_type: workflow` |
+| **GitHub Secrets** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 빌드 시 주입 |
 
 ### 참조 리포(rest03) 분석 결론
 
@@ -124,35 +138,47 @@ colors: {
 rest04/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml              # GitHub Actions CI/CD
+│       └── deploy.yml              # GitHub Actions CI/CD (Supabase secrets 주입)
 ├── Dev_log/
 │   └── README.md                   # 개발일지 (현재 파일)
 ├── public/
 │   └── og-image.png                # OG 이미지 1200×630 (sharp 생성)
 ├── scripts/
 │   └── generate-og.mjs             # OG 이미지 생성 스크립트 (Node.js ESM)
+├── supabase/
+│   └── schema.sql                  # posts 테이블 + RLS 정책 + 트리거 (재실행 안전)
 ├── src/
-│   ├── main.jsx                    # 진입점 — ThemeProvider + HashRouter
-│   ├── App.jsx                     # 라우팅 설정 (HashRouter)
+│   ├── main.jsx                    # 진입점 — ThemeProvider + AuthProvider + HashRouter
+│   ├── App.jsx                     # 라우팅 설정 (게시판·로그인·보호 라우트 포함)
 │   ├── index.css                   # Tailwind base + 커스텀 유틸리티·애니메이션
+│   ├── lib/
+│   │   └── supabase.js             # Supabase 클라이언트 (env var 기반)
 │   ├── context/
-│   │   └── ThemeContext.jsx        # 다크/라이트 전역 상태 (Context + localStorage)
+│   │   ├── ThemeContext.jsx        # 다크/라이트 전역 상태 (Context + localStorage)
+│   │   └── AuthContext.jsx         # 인증 전역 상태 — user·signIn·signUp·signOut·카카오OAuth
 │   ├── data/
-│   │   └── site.js                 # 중앙 데이터 (회사·동영상·네비게이션·특장점·통계)
+│   │   └── site.js                 # 중앙 데이터 (게시판 메뉴 추가)
 │   ├── components/
-│   │   ├── Header.jsx              # 고정 헤더, hover 드롭다운, 햄버거, 모드 토글
-│   │   ├── Footer.jsx              # 회사정보·링크·소셜 아이콘
-│   │   ├── ScrollToTop.jsx         # 라우트 변경 시 스크롤 0 초기화
-│   │   ├── ScrollToTopButton.jsx   # scrollY > 400px 시 플로팅 버튼
-│   │   ├── VideoCard.jsx           # 유튜브 썸네일 카드 + 카테고리 배지 + 재생 버튼
-│   │   └── VideoModal.jsx          # iframe 모달 플레이어 (ESC·배경클릭 닫기)
+│   │   ├── Header.jsx              # 로그인 상태 표시, 사용자 드롭다운, 로그아웃
+│   │   ├── ProtectedRoute.jsx      # 비로그인 시 /login 리다이렉트
+│   │   ├── Footer.jsx
+│   │   ├── ScrollToTop.jsx
+│   │   ├── ScrollToTopButton.jsx
+│   │   ├── VideoCard.jsx
+│   │   └── VideoModal.jsx
 │   └── pages/
-│       ├── Home.jsx                # Hero / 팔레트 / Features / 영상 미리보기 / CTA
-│       ├── Videos.jsx              # 카테고리 탭 + 2×3 그리드 + 페이지네이션
-│       ├── About.jsx               # 미션 / 핵심 가치 / 연혁 타임라인
-│       └── Contact.jsx             # 연락처 카드 + 문의 폼
+│       ├── Home.jsx
+│       ├── Videos.jsx
+│       ├── About.jsx
+│       ├── Contact.jsx
+│       ├── Login.jsx               # 이메일/비밀번호 + 카카오 로그인
+│       ├── Signup.jsx              # 닉네임·이메일·비밀번호 회원가입
+│       ├── Board.jsx               # 게시판 목록 + 검색 + 페이지네이션
+│       ├── BoardDetail.jsx         # 게시글 상세 + 수정/삭제 (본인글만)
+│       └── BoardWrite.jsx          # 게시글 작성·수정 폼
+├── .env.example                    # 환경변수 예시 (VITE_SUPABASE_URL·ANON_KEY)
 ├── index.html                      # OG·Twitter 메타태그 + FOUC 방지 스크립트
-├── package.json                    # scripts: dev·build·preview·og
+├── package.json
 ├── vite.config.js                  # base: '/rest04/'
 ├── tailwind.config.js
 └── postcss.config.js
@@ -301,6 +327,83 @@ GitHub Pages `build_type: legacy` → `workflow` 전환 (REST API `PUT /pages`).
 ```
 
 `public/og-image.png` → Vite 빌드 시 `dist/og-image.png` 자동 복사.
+
+### 5-10. Supabase 연동 — 인증 & 게시판 (2026-06-11)
+
+#### 추가된 패키지
+
+```bash
+npm install @supabase/supabase-js
+```
+
+#### Supabase 설정
+
+| 항목 | 내용 |
+|------|------|
+| 프로젝트 URL | `https://vhxvqtbemahbcbrbnkcv.supabase.co` |
+| Auth Provider | 이메일/비밀번호 + 카카오 OAuth |
+| 카카오 Redirect URI | `https://vhxvqtbemahbcbrbnkcv.supabase.co/auth/v1/callback` |
+
+#### posts 테이블 스키마
+
+```sql
+CREATE TABLE public.posts (
+  id          BIGSERIAL PRIMARY KEY,
+  title       TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  content     TEXT NOT NULL,
+  author_id   UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  author_name TEXT NOT NULL,
+  views       INT  NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+#### RLS 정책
+
+| 정책명 | 작업 | 조건 |
+|--------|------|------|
+| `posts_select_all` | SELECT | 전체 공개 |
+| `posts_insert_auth` | INSERT | 로그인 사용자 (`auth.uid() = author_id`) |
+| `posts_update_own` | UPDATE | 본인글만 (`auth.uid() = author_id`) |
+| `posts_delete_own` | DELETE | 본인글만 (`auth.uid() = author_id`) |
+
+`updated_at` 자동 갱신 트리거 포함.  
+`supabase/schema.sql`은 `DROP POLICY/TRIGGER IF EXISTS`를 사용해 재실행 안전.
+
+#### 인증 흐름
+
+```
+AuthContext (전역)
+  ├── signIn(email, password)       → supabase.auth.signInWithPassword
+  ├── signUp(email, password, name) → supabase.auth.signUp + display_name 메타데이터
+  ├── signInWithKakao()             → supabase.auth.signInWithOAuth({ provider: 'kakao' })
+  └── signOut()                     → supabase.auth.signOut
+
+ProtectedRoute
+  └── user 없으면 /login 으로 리다이렉트 (state.from 보존 → 로그인 후 원래 페이지로 복귀)
+```
+
+#### 게시판 기능
+
+| 경로 | 컴포넌트 | 설명 |
+|------|----------|------|
+| `/board` | `Board.jsx` | 목록 (15개/페이지) + 제목·내용 검색 + URL 쿼리 파라미터 페이지네이션 |
+| `/board/:id` | `BoardDetail.jsx` | 상세 보기 + 조회수 자동 증가 + 본인글 수정·삭제 |
+| `/board/write` | `BoardWrite.jsx` | 작성 (로그인 필요) |
+| `/board/edit/:id` | `BoardWrite.jsx` | 수정 (작성자 본인 검증 후 진입) |
+
+#### GitHub Actions 환경변수
+
+빌드 시 아래 GitHub Secrets 값이 주입됨:
+
+```yaml
+env:
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+```
+
+> Secrets 등록 위치: `github.com/ourgrowthpath/rest04` → Settings → Secrets and variables → Actions
 
 ### 5-9. 카카오 디버거 OG 검증 (2026-06-09)
 
@@ -454,6 +557,9 @@ dist/og-image.png               234.7  KB (public/ 자동 복사)
 | 4 | `c526631` | 2026-06-09 | feat: OG 메타태그 및 OG 이미지 추가 | 4 |
 | 5 | `f77e40e` | 2026-06-09 | docs: 개발일지 전면 업데이트 | 1 |
 | 6 | `e4b2188` | 2026-06-09 | docs: 개발일지 v3 — 전체 작업 완결 형태로 재편 | 1 |
+| 7 | `fdb3735` | 2026-06-09 | docs: 개발일지 v4 — OG 검증 결과 추가 | 1 |
+| 8 | `d525f48` | 2026-06-11 | feat: 게시판 및 로그인 기능 구현 (Supabase 연동) | 18 |
+| 9 | `970d5c7` | 2026-06-11 | fix: schema.sql 재실행 안전 버전으로 업데이트 | 1 |
 
 **커밋 #2 포함 파일 목록 (23개)**
 ```
@@ -487,6 +593,9 @@ scripts/generate-og.mjs (신규)
 | 4 | `c526631` | push | ✅ | OG 이미지·메타태그 적용 |
 | 5 | `f77e40e` | push | ✅ | 개발일지 v2 업데이트 |
 | 6 | `e4b2188` | push | ✅ | 개발일지 v3 재편 |
+| 7 | `fdb3735` | push | ✅ | 개발일지 v4 — OG 검증 결과 추가 |
+| 8 | `d525f48` | push | ✅ | Supabase 연동 — 게시판·로그인·카카오 OAuth |
+| 9 | `970d5c7` | push | ✅ | schema.sql 안전 버전 업데이트 |
 
 **라이브 엔드포인트 최종 상태**
 ```
@@ -500,15 +609,16 @@ https://ourgrowthpath.github.io/rest04/og-image.png → HTTP 200 (235 KB)
 
 | 우선순위 | 작업 | 내용 |
 |:--------:|------|------|
+| 🔴 | GitHub Secrets 등록 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` → Actions 탭에서 빌드 재실행 |
 | 🔴 | 실제 유튜브 영상 ID 교체 | `src/data/site.js` youtubeId 14개 실제 영상으로 업데이트 |
 | 🔴 | 회사 정보 실제 데이터 교체 | 이름·주소·연락처·로고 이미지 |
 | 🟡 | 영상 키워드 검색 | 제목·설명 실시간 필터링 |
 | 🟡 | Google Analytics 연동 | GA4 `gtag.js` 삽입 |
 | 🟡 | SEO 강화 | `sitemap.xml`, `robots.txt`, JSON-LD 구조화 데이터 |
+| 🟡 | 게시판 댓글 기능 | `comments` 테이블 + 게시글 하단 댓글 영역 |
 | 🟢 | 커스텀 도메인 | GitHub Pages CNAME + DNS 레코드 |
 | 🟢 | 영상 북마크 | localStorage 저장, 헤더 북마크 아이콘 |
-| 🟢 | 다국어 지원 | i18n 또는 수동 JSON 관리 |
 
 ---
 
-*개발일지 v4 — 최종 업데이트: 2026-06-09*
+*개발일지 v5 — 최종 업데이트: 2026-06-11*
