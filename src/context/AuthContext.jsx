@@ -33,10 +33,7 @@ export function AuthProvider({ children }) {
   const signInWithKakao = () =>
     supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: {
-        redirectTo: window.location.origin,
-        scopes: 'profile_nickname',
-      },
+      options: { scopes: 'profile_nickname' },
     })
 
   const signOut = () => supabase.auth.signOut()
