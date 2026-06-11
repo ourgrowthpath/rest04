@@ -1,6 +1,6 @@
 -- ================================================
 -- 성장패스 아카데미 게시판 스키마
--- Supabase SQL Editor에서 실행하세요
+-- 재실행해도 안전한 버전
 -- ================================================
 
 -- posts 테이블
@@ -15,29 +15,31 @@ CREATE TABLE IF NOT EXISTS public.posts (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- RLS 활성화
+-- RLS 활성화 (이미 켜져 있어도 무시됨)
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 
--- 누구나 조회 가능
+-- 정책: 기존 것 제거 후 재생성 (충돌 방지)
+DROP POLICY IF EXISTS "posts_select_all"  ON public.posts;
+DROP POLICY IF EXISTS "posts_insert_auth" ON public.posts;
+DROP POLICY IF EXISTS "posts_update_own"  ON public.posts;
+DROP POLICY IF EXISTS "posts_delete_own"  ON public.posts;
+
 CREATE POLICY "posts_select_all"
   ON public.posts FOR SELECT USING (true);
 
--- 로그인한 사용자만 작성 가능
 CREATE POLICY "posts_insert_auth"
   ON public.posts FOR INSERT
   WITH CHECK (auth.uid() = author_id);
 
--- 작성자 본인만 수정 가능
 CREATE POLICY "posts_update_own"
   ON public.posts FOR UPDATE
   USING (auth.uid() = author_id);
 
--- 작성자 본인만 삭제 가능
 CREATE POLICY "posts_delete_own"
   ON public.posts FOR DELETE
   USING (auth.uid() = author_id);
 
--- updated_at 자동 갱신 트리거
+-- updated_at 자동 갱신 함수 및 트리거
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -45,6 +47,8 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+DROP TRIGGER IF EXISTS posts_set_updated_at ON public.posts;
 
 CREATE TRIGGER posts_set_updated_at
   BEFORE UPDATE ON public.posts
