@@ -1,4 +1,4 @@
-# 성장패스 아카데미 — 개발일지 v6
+# 성장패스 아카데미 — 개발일지 v7
 
 > **온라인 AI 교육 플랫폼 rest04** · 전체 개발 기록
 
@@ -9,8 +9,8 @@
 | 배포 URL | https://ourgrowthpath.github.io/rest04/ |
 | 참조 리포 | https://github.com/aebonlee/rest03 |
 | 개발 기간 | 2026-06-09 ~ 2026-06-16 |
-| 개발일지 버전 | v6 |
-| 최종 업데이트 | 2026-06-16 — AI 채팅 위젯 추가 |
+| 개발일지 버전 | v7 |
+| 최종 업데이트 | 2026-06-16 — AI 채팅 회원 전용 게이트 추가 |
 
 ---
 
@@ -48,6 +48,8 @@
 | 10 | Supabase Auth — 이메일/비밀번호 + 카카오 OAuth 로그인 | ✅ |
 | 11 | 게시판 (목록·상세·작성·수정·삭제) + 검색 + 페이지네이션 | ✅ |
 | 12 | RLS 정책 — 읽기 전체 공개 / 쓰기 로그인 / 수정·삭제 본인글만 | ✅ |
+| 13 | 메인페이지 AI 채팅 위젯 (Solar 메인 → OpenAI 폴백, Edge Function) | ✅ |
+| 14 | AI 채팅 **회원 전용** — 화면 게이트 + Edge Function 토큰 검증 (이중 차단) | ✅ |
 
 ---
 
@@ -561,7 +563,9 @@ dist/og-image.png               234.7  KB (public/ 자동 복사)
 | 8 | `d525f48` | 2026-06-11 | feat: 게시판 및 로그인 기능 구현 (Supabase 연동) | 18 |
 | 9 | `970d5c7` | 2026-06-11 | fix: schema.sql 재실행 안전 버전으로 업데이트 | 1 |
 | 10 | `36e8b38` | 2026-06-11 | docs: 개발일지 v5 — Supabase 연동 작업 기록 추가 | 1 |
-| 11 | *(이번)* | 2026-06-11 | fix: 카카오 OAuth 스코프 profile_nickname으로 수정 | 2 |
+| 11 | `(이전)` | 2026-06-11 | fix: 카카오 OAuth 스코프 profile_nickname으로 수정 | 2 |
+| 12 | `(이전)` | 2026-06-16 | feat: AI 채팅 위젯(syu-chat) 추가 + 런처 디자인 강화 | 4 |
+| 13 | *(이번)* | 2026-06-16 | feat: AI 채팅 회원 전용 게이트 + 개발일지 v7 | 4 |
 
 **커밋 #2 포함 파일 목록 (23개)**
 ```
@@ -599,7 +603,9 @@ scripts/generate-og.mjs (신규)
 | 8 | `d525f48` | push | ✅ | Supabase 연동 — 게시판·로그인·카카오 OAuth |
 | 9 | `970d5c7` | push | ✅ | schema.sql 안전 버전 업데이트 |
 | 10 | `36e8b38` | push | ✅ | 개발일지 v5 |
-| 11 | *(이번)* | push | 🔄 | 카카오 OAuth 스코프 수정 (KOE205 해결) |
+| 11 | `(이전)` | push | ✅ | 카카오 OAuth 스코프 수정 (KOE205 해결) |
+| 12 | `(이전)` | push | ✅ | AI 채팅 위젯(syu-chat) 추가 |
+| 13 | *(이번)* | push | 🔄 | AI 채팅 회원 전용 게이트 (화면+서버 이중 차단) |
 
 **라이브 엔드포인트 최종 상태**
 ```
@@ -707,4 +713,52 @@ npx supabase functions deploy syu-chat
 
 ---
 
-*개발일지 v6 — 최종 업데이트: 2026-06-16*
+### 5-13. AI 채팅 회원 전용 전환 (2026-06-16)
+
+#### 요구사항
+AI 채팅 도우미를 **로그인한 회원만** 사용할 수 있도록 제한. (기존 5-12는 모든 방문자 허용)
+
+#### 설계 결정 — 이중 차단
+화면만 막으면 브라우저 콘솔이나 API 직접 호출로 우회 가능하므로, **화면(UX)** 과
+**서버(보안)** 두 계층에서 동시에 차단한다.
+
+| 계층 | 파일 | 방식 |
+|------|------|------|
+| 화면 | `src/components/ChatWidget.jsx` | `useAuth()`로 로그인 확인 — 비로그인 시 입력창 대신 로그인/회원가입 안내 표시 |
+| 서버 | `supabase/functions/syu-chat/index.ts` | 요청 `Authorization` 토큰을 `auth.getUser()`로 검증 — 비로그인(익명 키) 요청은 401 거부 |
+
+#### 화면 변경 (`ChatWidget.jsx`)
+- `useAuth()`의 `user`로 로그인 상태 확인.
+- **비로그인 시**: 채팅 패널 본문을 🔒 안내("로그인 후 이용할 수 있어요") + **로그인/회원가입 버튼**(클릭 시 해당 페이지 이동, 패널 닫힘)으로 교체.
+- **로그인 시**: 기존 메시지 목록 + 입력창 정상 노출.
+- `send()`에 `!user` 가드 추가(방어적 차단).
+- 런처 버튼은 그대로 노출 → 기능 발견성 유지하면서 사용은 회원으로 제한.
+
+#### 서버 변경 (`syu-chat/index.ts`)
+```ts
+// 회원 전용: 요청자 토큰 검증
+const authHeader = req.headers.get('Authorization') ?? ''
+const token = authHeader.replace(/^Bearer\s+/i, '')
+const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { headers: { Authorization: authHeader } },
+})
+const { data: { user } } = await authClient.auth.getUser(token)
+if (!user) return json({ error: '로그인 후 이용할 수 있는 기능이에요.' }, 401)
+```
+- 로그인 사용자: `supabase.functions.invoke`가 세션 access token을 자동 첨부 → 검증 통과.
+- 익명 방문자: 익명 키는 사용자 토큰이 아니므로 `getUser()`가 사용자 반환 안 함 → 401.
+- `verify_jwt = false` 유지(게이트웨이 대신 함수 내부에서 검증해 친절한 한국어 401 응답 제공).
+
+#### 배포 절차
+```bash
+# 프론트엔드(GitHub Pages) — push 시 자동 배포
+git push
+
+# Edge Function — 별도 재배포 필요 (안 하면 서버 차단 미적용)
+npx supabase functions deploy syu-chat
+```
+> ⚠️ 프론트엔드만 배포하면 화면 게이트는 적용되지만 서버 차단은 함수 재배포 후 적용된다.
+
+---
+
+*개발일지 v7 — 최종 업데이트: 2026-06-16*

@@ -2,6 +2,9 @@
 // Solar(Upstage) API를 우선 호출하고, 실패 시 OpenAI로 폴백한다.
 // API 키는 Supabase 시크릿(SOLAR_API_KEY / OPENAI_API_KEY)으로만 보관하며
 // 브라우저에는 절대 노출되지 않는다.
+// 로그인한 회원만 사용할 수 있도록 요청자의 인증 토큰을 검증한다.
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,7 +71,28 @@ Deno.serve(async (req) => {
     return json({ error: 'POST 요청만 허용됩니다.' }, 405)
   }
 
+  // ── 회원 전용: 인증 토큰 검증 ──────────────────────────────────────
+  // 로그인하지 않은 방문자(익명 키만 가진 요청)는 거부한다.
+  const authHeader = req.headers.get('Authorization') ?? ''
+  const token = authHeader.replace(/^Bearer\s+/i, '')
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+
+  if (!token || !supabaseUrl || !anonKey) {
+    return json({ error: '로그인 후 이용할 수 있는 기능이에요.' }, 401)
+  }
+
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  })
+  const { data: { user }, error: authError } = await authClient.auth.getUser(token)
+
+  if (authError || !user) {
+    return json({ error: '로그인 후 이용할 수 있는 기능이에요.' }, 401)
+  }
+
   console.log('[syu-chat] 요청 수신', {
+    user: user.id,
     hasSolar: !!Deno.env.get('SOLAR_API_KEY'),
     hasOpenAI: !!Deno.env.get('OPENAI_API_KEY'),
   })

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 const WELCOME = {
   role: 'assistant',
@@ -7,6 +9,7 @@ const WELCOME = {
 }
 
 export default function ChatWidget() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([WELCOME])
   const [input, setInput] = useState('')
@@ -34,7 +37,7 @@ export default function ChatWidget() {
 
   const send = async () => {
     const text = input.trim()
-    if (!text || loading) return
+    if (!text || loading || !user) return
 
     const nextMessages = [...messages, { role: 'user', content: text }]
     setMessages(nextMessages)
@@ -171,7 +174,45 @@ export default function ChatWidget() {
             </div>
           </div>
 
-          {/* 메시지 목록 */}
+          {!user ? (
+            /* 비로그인 안내 — 회원만 이용 가능 */
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 px-6 py-8 bg-gray-50 dark:bg-brand-navy/40">
+              <div className="w-14 h-14 rounded-full bg-brand-royal/10 dark:bg-white/10 flex items-center justify-center">
+                <svg className="w-7 h-7 text-brand-royal dark:text-brand-sky" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                    d="M12 11c0-1.1.9-2 2-2s2 .9 2 2v2H8v-2c0-1.1.9-2 2-2m6 2v6a2 2 0 01-2 2H10a2 2 0 01-2-2v-6m8 0H8" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-bold text-gray-800 dark:text-gray-100">로그인 후 이용할 수 있어요</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  AI 상담 도우미는 회원 전용 기능이에요.<br />
+                  로그인하시면 바로 질문할 수 있습니다 😊
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 w-full max-w-[14rem]">
+                <Link
+                  to="/login"
+                  onClick={() => setOpen(false)}
+                  className="w-full py-2.5 rounded-xl bg-brand-royal text-white text-sm font-semibold
+                    text-center transition-colors hover:bg-brand-sky"
+                >
+                  로그인
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={() => setOpen(false)}
+                  className="w-full py-2.5 rounded-xl border border-brand-royal/30 dark:border-white/20
+                    text-brand-royal dark:text-brand-sky text-sm font-semibold text-center
+                    transition-colors hover:bg-brand-royal/5 dark:hover:bg-white/5"
+                >
+                  회원가입
+                </Link>
+              </div>
+            </div>
+          ) : (
+          /* 메시지 목록 */
+          <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 dark:bg-brand-navy/40">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -224,6 +265,8 @@ export default function ChatWidget() {
               </button>
             </div>
           </div>
+          </>
+          )}
         </div>
       )}
     </>

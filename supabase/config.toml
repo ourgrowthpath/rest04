@@ -2,6 +2,7 @@
 # 프로젝트 ref: vhxvqtbemahbcbrbnkcv
 project_id = "rest04"
 
-# syu-chat Edge Function: 로그인하지 않은 방문자도 호출할 수 있도록 JWT 검증 비활성화
+# syu-chat Edge Function: 게이트웨이 JWT 검증은 끄고(친절한 한국어 401 응답을 위해)
+# 함수 내부에서 직접 사용자 토큰을 검증한다 — 로그인한 회원만 호출 가능.
 [functions.syu-chat]
 verify_jwt = false
