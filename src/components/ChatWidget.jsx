@@ -36,17 +36,34 @@ export default function ChatWidget() {
     try {
       // 시스템 메시지는 Edge Function에서 추가하므로 user/assistant만 전달
       const payload = nextMessages.filter(m => m !== WELCOME)
-      const { data, error } = await supabase.functions.invoke('chat', {
+      const { data, error } = await supabase.functions.invoke('syu-chat', {
         body: { messages: payload },
       })
 
-      if (error || !data?.reply) {
-        const msg = data?.error || '죄송합니다. 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.'
-        setMessages(m => [...m, { role: 'assistant', content: msg }])
+      if (error) {
+        // FunctionsHttpError 인 경우 error.context(Response)에서 상태/본문 추출
+        let detail = ''
+        try {
+          if (error.context && typeof error.context.text === 'function') {
+            detail = `status=${error.context.status} body=${await error.context.text()}`
+          }
+        } catch { /* ignore */ }
+        console.error('[syu-chat] invoke 실패:', error.name, error.message, detail)
+        setMessages(m => [...m, {
+          role: 'assistant',
+          content: '죄송합니다. 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',
+        }])
+      } else if (!data?.reply) {
+        console.error('[syu-chat] reply 없음, 응답:', data)
+        setMessages(m => [...m, {
+          role: 'assistant',
+          content: data?.error || '죄송합니다. 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',
+        }])
       } else {
         setMessages(m => [...m, { role: 'assistant', content: data.reply }])
       }
-    } catch {
+    } catch (e) {
+      console.error('[syu-chat] 네트워크 예외:', e)
       setMessages(m => [...m, {
         role: 'assistant',
         content: '네트워크 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',

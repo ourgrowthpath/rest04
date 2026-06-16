@@ -1,4 +1,4 @@
-# chat Edge Function
+# syu-chat Edge Function
 
 메인페이지 채팅 위젯(`src/components/ChatWidget.jsx`)이 호출하는 AI 응답 함수.
 **Solar(Upstage)** 를 우선 호출하고 실패하면 **OpenAI** 로 폴백한다.
@@ -16,14 +16,14 @@ npx supabase secrets set SOLAR_API_KEY="업스테이지_솔라_키"
 npx supabase secrets set OPENAI_API_KEY="오픈AI_키"
 
 # 3. 함수 배포 (config.toml 에 verify_jwt=false 설정되어 있어 로그인 없이도 호출 가능)
-npx supabase functions deploy chat
+npx supabase functions deploy syu-chat
 ```
 
 ## 동작 확인
 
 ```bash
 curl -i -X POST \
-  "https://vhxvqtbemahbcbrbnkcv.supabase.co/functions/v1/chat" \
+  "https://vhxvqtbemahbcbrbnkcv.supabase.co/functions/v1/syu-chat" \
   -H "Content-Type: application/json" \
   -H "apikey: <VITE_SUPABASE_ANON_KEY>" \
   -d '{"messages":[{"role":"user","content":"강의 종류 알려줘"}]}'

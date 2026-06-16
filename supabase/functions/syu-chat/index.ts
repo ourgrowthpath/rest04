@@ -68,6 +68,11 @@ Deno.serve(async (req) => {
     return json({ error: 'POST 요청만 허용됩니다.' }, 405)
   }
 
+  console.log('[syu-chat] 요청 수신', {
+    hasSolar: !!Deno.env.get('SOLAR_API_KEY'),
+    hasOpenAI: !!Deno.env.get('OPENAI_API_KEY'),
+  })
+
   let messages: { role: string; content: string }[]
   try {
     const body = await req.json()
