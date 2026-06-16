@@ -1,0 +1,7 @@
+# Supabase 로컬/배포 설정
+# 프로젝트 ref: vhxvqtbemahbcbrbnkcv
+project_id = "rest04"
+
+# chat Edge Function: 로그인하지 않은 방문자도 호출할 수 있도록 JWT 검증 비활성화
+[functions.chat]
+verify_jwt = false

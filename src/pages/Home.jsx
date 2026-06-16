@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { company, features, stats, videos } from '../data/site'
 import VideoCard from '../components/VideoCard'
 import VideoModal from '../components/VideoModal'
+import ChatWidget from '../components/ChatWidget'
 
 const PALETTE = [
   { name: 'Dark Navy', hex: '#0A1628', label: 'C1' },
@@ -181,6 +182,8 @@ export default function Home() {
       </section>
 
       {activeVideo && <VideoModal video={activeVideo} onClose={() => setActiveVideo(null)} />}
+
+      <ChatWidget />
     </>
   )
 }

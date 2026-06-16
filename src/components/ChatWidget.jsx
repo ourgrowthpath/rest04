@@ -1,0 +1,164 @@
+import { useState, useRef, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+
+const WELCOME = {
+  role: 'assistant',
+  content: '안녕하세요! 성장패스 아카데미 AI 도우미예요. 강의나 이용 방법에 대해 무엇이든 물어보세요 😊',
+}
+
+export default function ChatWidget() {
+  const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState([WELCOME])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const scrollRef = useRef(null)
+  const inputRef = useRef(null)
+
+  // 새 메시지/로딩 시 맨 아래로 스크롤
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [messages, loading])
+
+  // 열릴 때 입력창 포커스
+  useEffect(() => {
+    if (open) inputRef.current?.focus()
+  }, [open])
+
+  const send = async () => {
+    const text = input.trim()
+    if (!text || loading) return
+
+    const nextMessages = [...messages, { role: 'user', content: text }]
+    setMessages(nextMessages)
+    setInput('')
+    setLoading(true)
+
+    try {
+      // 시스템 메시지는 Edge Function에서 추가하므로 user/assistant만 전달
+      const payload = nextMessages.filter(m => m !== WELCOME)
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: { messages: payload },
+      })
+
+      if (error || !data?.reply) {
+        const msg = data?.error || '죄송합니다. 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.'
+        setMessages(m => [...m, { role: 'assistant', content: msg }])
+      } else {
+        setMessages(m => [...m, { role: 'assistant', content: data.reply }])
+      }
+    } catch {
+      setMessages(m => [...m, {
+        role: 'assistant',
+        content: '네트워크 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',
+      }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      send()
+    }
+  }
+
+  return (
+    <>
+      {/* ── 런처 버튼 ──────────────────────────────────────────────── */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-label={open ? '채팅 닫기' : '채팅 열기'}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-brand-royal text-white
+          shadow-lg shadow-brand-royal/40 flex items-center justify-center
+          transition-all duration-300 hover:bg-brand-sky hover:shadow-brand-sky/40 hover:-translate-y-1"
+      >
+        {open ? (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+              d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.3-3.9A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        )}
+      </button>
+
+      {/* ── 채팅 패널 ──────────────────────────────────────────────── */}
+      {open && (
+        <div
+          className="fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[32rem] max-h-[70vh]
+            flex flex-col rounded-2xl overflow-hidden shadow-2xl
+            bg-white dark:bg-brand-navy border border-gray-200 dark:border-white/10
+            animate-fade-in-up"
+        >
+          {/* 헤더 */}
+          <div className="bg-hero-gradient text-white px-5 py-4 flex items-center gap-3 shrink-0">
+            <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-amber animate-pulse-slow" />
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-tight">AI 상담 도우미</p>
+              <p className="text-xs text-gray-300">성장패스 아카데미</p>
+            </div>
+          </div>
+
+          {/* 메시지 목록 */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 dark:bg-brand-navy/40">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                    m.role === 'user'
+                      ? 'bg-brand-royal text-white rounded-br-md'
+                      : 'bg-white dark:bg-white/10 text-gray-800 dark:text-gray-100 rounded-bl-md shadow-sm'
+                  }`}
+                >
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-white dark:bg-white/10 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 입력 영역 */}
+          <div className="p-3 border-t border-gray-200 dark:border-white/10 bg-white dark:bg-brand-navy shrink-0">
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="메시지를 입력하세요…"
+                className="flex-1 resize-none max-h-28 px-3 py-2.5 rounded-xl text-sm
+                  bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-gray-100
+                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-royal/50"
+              />
+              <button
+                onClick={send}
+                disabled={loading || !input.trim()}
+                aria-label="전송"
+                className="shrink-0 w-10 h-10 rounded-xl bg-brand-royal text-white flex items-center justify-center
+                  transition-colors hover:bg-brand-sky disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
