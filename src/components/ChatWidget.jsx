@@ -11,8 +11,16 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState([WELCOME])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showHint, setShowHint] = useState(false)
   const scrollRef = useRef(null)
   const inputRef = useRef(null)
+
+  // 페이지 진입 후 잠시 뒤 안내 말풍선 노출 (한 번이라도 열면 다시 안 띄움)
+  useEffect(() => {
+    if (open) return
+    const t = setTimeout(() => setShowHint(true), 1800)
+    return () => clearTimeout(t)
+  }, [open])
 
   // 새 메시지/로딩 시 맨 아래로 스크롤
   useEffect(() => {
@@ -82,25 +90,67 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* ── 런처 버튼 ──────────────────────────────────────────────── */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        aria-label={open ? '채팅 닫기' : '채팅 열기'}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-brand-royal text-white
-          shadow-lg shadow-brand-royal/40 flex items-center justify-center
-          transition-all duration-300 hover:bg-brand-sky hover:shadow-brand-sky/40 hover:-translate-y-1"
-      >
-        {open ? (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-              d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.3-3.9A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+      {/* ── 런처 영역 ──────────────────────────────────────────────── */}
+      <div className="fixed bottom-6 right-6 z-50 flex items-end gap-3">
+        {/* 안내 말풍선 (닫혀 있을 때만) */}
+        {!open && showHint && (
+          <div className="mb-2 max-w-[16rem] animate-pop-in relative
+            bg-white dark:bg-brand-navy text-gray-800 dark:text-gray-100
+            rounded-2xl rounded-br-sm shadow-xl border border-gray-100 dark:border-white/10
+            px-4 py-3 text-sm leading-snug">
+            <button
+              onClick={() => setShowHint(false)}
+              aria-label="안내 닫기"
+              className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-gray-300 dark:bg-white/20
+                text-gray-700 dark:text-white text-xs flex items-center justify-center hover:bg-gray-400"
+            >
+              ×
+            </button>
+            <span className="font-bold text-brand-royal dark:text-brand-sky">AI 도우미</span>에게
+            무엇이든 물어보세요! 👋
+          </div>
         )}
-      </button>
+
+        <div className="relative">
+          {/* 펄스 후광 (닫혀 있을 때만) */}
+          {!open && (
+            <>
+              <span className="absolute inset-0 rounded-full bg-brand-amber animate-halo pointer-events-none" />
+              <span className="absolute inset-0 rounded-full bg-brand-sky animate-halo pointer-events-none"
+                style={{ animationDelay: '1s' }} />
+            </>
+          )}
+
+          <button
+            onClick={() => { setOpen(o => !o); setShowHint(false) }}
+            aria-label={open ? '채팅 닫기' : '채팅 열기'}
+            className={`relative w-16 h-16 rounded-full text-white flex items-center justify-center
+              shadow-2xl shadow-brand-royal/50 ring-4 ring-white/70 dark:ring-white/10
+              bg-gradient-to-br from-brand-royal via-brand-sky to-brand-teal
+              transition-all duration-300 hover:scale-110 hover:shadow-brand-sky/60
+              ${open ? '' : 'animate-float'}`}
+          >
+            {open ? (
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9}
+                  d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.3-3.9A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            )}
+          </button>
+
+          {/* 온라인 표시 점 (닫혀 있을 때만) */}
+          {!open && (
+            <span className="absolute top-0 right-0 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-amber opacity-75" />
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-brand-amber ring-2 ring-white" />
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* ── 채팅 패널 ──────────────────────────────────────────────── */}
       {open && (
