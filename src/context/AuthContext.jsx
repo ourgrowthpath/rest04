@@ -33,7 +33,13 @@ export function AuthProvider({ children }) {
   const signInWithKakao = () =>
     supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { scopes: 'profile_nickname' },
+      options: {
+        scopes: 'profile_nickname',
+        // 앱은 GitHub Pages 서브경로(/rest04/)에 있으므로 루트가 아닌
+        // 앱 경로로 돌아와야 세션 토큰(해시)이 처리된다.
+        // BASE_URL = '/rest04/' (vite.config base) → 배포·로컬 모두 자동 대응.
+        redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+      },
     })
 
   const signOut = () => supabase.auth.signOut()
