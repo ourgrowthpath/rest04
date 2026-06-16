@@ -1,4 +1,4 @@
-# 성장패스 아카데미 — 개발일지 v7
+# 성장패스 아카데미 — 개발일지 v8
 
 > **온라인 AI 교육 플랫폼 rest04** · 전체 개발 기록
 
@@ -9,8 +9,8 @@
 | 배포 URL | https://ourgrowthpath.github.io/rest04/ |
 | 참조 리포 | https://github.com/aebonlee/rest03 |
 | 개발 기간 | 2026-06-09 ~ 2026-06-16 |
-| 개발일지 버전 | v7 |
-| 최종 업데이트 | 2026-06-16 — AI 채팅 회원 전용 게이트 추가 |
+| 개발일지 버전 | v8 |
+| 최종 업데이트 | 2026-06-16 — 카카오 로그인 redirect 경로 수정 |
 
 ---
 
@@ -50,6 +50,7 @@
 | 12 | RLS 정책 — 읽기 전체 공개 / 쓰기 로그인 / 수정·삭제 본인글만 | ✅ |
 | 13 | 메인페이지 AI 채팅 위젯 (Solar 메인 → OpenAI 폴백, Edge Function) | ✅ |
 | 14 | AI 채팅 **회원 전용** — 화면 게이트 + Edge Function 토큰 검증 (이중 차단) | ✅ |
+| 15 | 카카오 로그인 후 앱 서브경로(`/rest04/`)로 복귀 — `redirectTo` 지정 | ✅ |
 
 ---
 
@@ -565,7 +566,9 @@ dist/og-image.png               234.7  KB (public/ 자동 복사)
 | 10 | `36e8b38` | 2026-06-11 | docs: 개발일지 v5 — Supabase 연동 작업 기록 추가 | 1 |
 | 11 | `(이전)` | 2026-06-11 | fix: 카카오 OAuth 스코프 profile_nickname으로 수정 | 2 |
 | 12 | `(이전)` | 2026-06-16 | feat: AI 채팅 위젯(syu-chat) 추가 + 런처 디자인 강화 | 4 |
-| 13 | *(이번)* | 2026-06-16 | feat: AI 채팅 회원 전용 게이트 + 개발일지 v7 | 4 |
+| 13 | `c17ff0d` | 2026-06-16 | feat: AI 채팅 회원 전용 게이트 + 개발일지 v7 | 4 |
+| 14 | `3caae19` | 2026-06-16 | fix: 카카오 로그인 redirectTo를 /rest04/ 경로로 지정 | 1 |
+| 15 | *(이번)* | 2026-06-16 | docs: 개발일지 v8 — 카카오 redirect 수정 기록 | 1 |
 
 **커밋 #2 포함 파일 목록 (23개)**
 ```
@@ -605,7 +608,9 @@ scripts/generate-og.mjs (신규)
 | 10 | `36e8b38` | push | ✅ | 개발일지 v5 |
 | 11 | `(이전)` | push | ✅ | 카카오 OAuth 스코프 수정 (KOE205 해결) |
 | 12 | `(이전)` | push | ✅ | AI 채팅 위젯(syu-chat) 추가 |
-| 13 | *(이번)* | push | 🔄 | AI 채팅 회원 전용 게이트 (화면+서버 이중 차단) |
+| 13 | `c17ff0d` | push | ✅ | AI 채팅 회원 전용 게이트 (화면+서버 이중 차단) |
+| 14 | `3caae19` | push | ✅ | 카카오 로그인 redirect 경로(/rest04/) 수정 |
+| 15 | *(이번)* | push | 🔄 | 개발일지 v8 |
 
 **라이브 엔드포인트 최종 상태**
 ```
@@ -761,4 +766,40 @@ npx supabase functions deploy syu-chat
 
 ---
 
-*개발일지 v7 — 최종 업데이트: 2026-06-16*
+### 5-14. 카카오 로그인 redirect 경로 수정 (2026-06-16)
+
+#### 증상
+카카오 로그인 후 `https://ourgrowthpath.github.io/#access_token=...`(루트)로 이동.
+앱은 `/rest04/` 서브경로에 있어 루트엔 앱 JS가 없음 → 세션 토큰이 처리되지 않고 로그인 안 됨.
+
+#### 원인
+`signInWithKakao`에 `redirectTo`가 없어 Supabase가 대시보드 기본 **Site URL**
+(`https://ourgrowthpath.github.io` — 루트)로 복귀시킴. GitHub Pages 프로젝트 페이지는
+`/rest04/` 하위라 루트로 가면 앱 밖으로 벗어남.
+
+#### 수정 (`src/context/AuthContext.jsx`)
+```js
+supabase.auth.signInWithOAuth({
+  provider: 'kakao',
+  options: {
+    scopes: 'profile_nickname',
+    // 앱 서브경로(/rest04/)로 복귀해야 해시 토큰이 처리됨.
+    // BASE_URL = '/rest04/' (vite base) → 배포·로컬 모두 자동 대응.
+    redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+  },
+})
+```
+
+#### Supabase 대시보드 설정 (코드와 함께 필수)
+`redirectTo`는 **허용 목록에 있을 때만** 적용되고, 없으면 무시되어 Site URL로 폴백한다.
+Authentication → URL Configuration:
+- **Site URL**: `https://ourgrowthpath.github.io/rest04/`
+- **Redirect URLs**: `https://ourgrowthpath.github.io/rest04/**`, `http://localhost:5173/rest04/**`
+
+> 검증 노트: Supabase `authorize` 단계는 어떤 `redirect_to`든 그대로 통과시키고,
+> **허용 목록 검증은 카카오 콜백 복귀 후**에 수행된다. 따라서 외부 호출만으로는 허용 여부를
+> 확정할 수 없고, 실제 로그인 완료로만 검증 가능. 배포 번들에 `/rest04/` 복귀 로직 포함은 확인됨.
+
+---
+
+*개발일지 v8 — 최종 업데이트: 2026-06-16*
