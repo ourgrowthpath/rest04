@@ -1,4 +1,4 @@
-# 성장패스 아카데미 — 개발일지 v5
+# 성장패스 아카데미 — 개발일지 v6
 
 > **온라인 AI 교육 플랫폼 rest04** · 전체 개발 기록
 
@@ -8,9 +8,9 @@
 | 리포지토리 | https://github.com/ourgrowthpath/rest04 |
 | 배포 URL | https://ourgrowthpath.github.io/rest04/ |
 | 참조 리포 | https://github.com/aebonlee/rest03 |
-| 개발 기간 | 2026-06-09 ~ 2026-06-11 |
-| 개발일지 버전 | v5 |
-| 최종 커밋 | `970d5c7` |
+| 개발 기간 | 2026-06-09 ~ 2026-06-16 |
+| 개발일지 버전 | v6 |
+| 최종 업데이트 | 2026-06-16 — AI 채팅 위젯 추가 |
 
 ---
 
@@ -659,4 +659,52 @@ supabase.auth.signInWithOAuth({
 
 ---
 
-*개발일지 v5 — 최종 업데이트: 2026-06-11*
+### 5-12. 메인페이지 AI 채팅 위젯 (2026-06-16)
+
+#### 요구사항
+메인페이지 우측 하단에 채팅 팝업을 띄우고, **Solar(Upstage) API**로 방문자 질문에
+답변. Solar 실패 시 **OpenAI**로 폴백. API 키는 **Supabase에 저장**하여 사용.
+
+#### 설계 결정
+| 항목 | 결정 | 이유 |
+|------|------|------|
+| 키 호출 위치 | **Supabase Edge Function** | GitHub Pages(정적 호스팅)에서 브라우저가 직접 키를 쓰면 키가 노출됨. 함수가 서버 측에서 대신 호출 |
+| 키 저장 | Supabase **Secrets**(env) | DB 테이블이 아닌 시크릿으로 보관 → 브라우저 비노출 |
+| 모델 우선순위 | **Solar 메인 → OpenAI 폴백** | 한국어 강점의 Solar 우선, 실패 시 OpenAI 대체 |
+| 이용 권한 | 모든 방문자 | `verify_jwt = false`로 비로그인 호출 허용 |
+
+#### 구성 요소
+- **`src/components/ChatWidget.jsx`** — 우측 하단 런처 버튼 + 팝업 패널. 메시지 목록,
+  입력창(Enter 전송 / Shift+Enter 줄바꿈), 타이핑 인디케이터, 다크모드 대응.
+  기존 supabase 클라이언트의 `functions.invoke('syu-chat', …)`로 호출(프론트 신규 env 불필요).
+- **`supabase/functions/syu-chat/index.ts`** — Deno Edge Function. CORS 처리, 시스템
+  프롬프트 주입, Solar 우선 호출 후 실패 시 OpenAI 폴백, 진입/실패 로그 출력.
+- **`supabase/config.toml`** — `[functions.syu-chat] verify_jwt = false`.
+- **`src/pages/Home.jsx`** — `<ChatWidget />` 추가. 겹침 방지로 `ScrollToTopButton`을
+  `bottom-6` → `bottom-24`로 이동.
+
+#### Edge Function 환경변수 (Supabase Secrets)
+| 변수 | 기본값 |
+|------|--------|
+| `SOLAR_API_KEY` | (필수) |
+| `OPENAI_API_KEY` | (폴백용, 선택) |
+| `SOLAR_API_URL` | `https://api.upstage.ai/v1/chat/completions` |
+| `SOLAR_MODEL` | `solar-pro2` |
+| `OPENAI_MODEL` | `gpt-4o-mini` |
+
+#### 배포 절차
+```bash
+npx supabase link --project-ref vhxvqtbemahbcbrbnkcv   # 프론트와 동일 프로젝트
+npx supabase secrets set SOLAR_API_KEY="..." OPENAI_API_KEY="..."
+npx supabase functions deploy syu-chat
+```
+> 프론트엔드(GitHub Pages)는 push 시 자동 배포되지만, **Edge Function은 위 명령으로 별도 배포**가 필요하다.
+
+#### 트러블슈팅 기록
+- **증상:** 채팅은 열리고 전송되나 "답변을 가져오지 못했어요" 표시.
+- **원인:** ① 코드가 `chat`을 invoke했으나 배포 함수명은 `syu-chat`(불일치). ② 프론트가 쓰는 프로젝트(`vhxvqtbemahbcbrbnkcv`)에 함수 미배포(`NOT_FOUND`).
+- **조치:** invoke 대상·함수 폴더·config를 `syu-chat`으로 통일, invoke 실패 시 `error.context`(HTTP status·body)를 콘솔 출력하도록 로깅 보강, 함수 진입부 로그 추가. 동일 프로젝트로 `functions deploy syu-chat` 재배포.
+
+---
+
+*개발일지 v6 — 최종 업데이트: 2026-06-16*
